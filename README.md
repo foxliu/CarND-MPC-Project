@@ -1,6 +1,94 @@
 # CarND-Controls-MPC
 Self-Driving Car Engineer Nanodegree Program
 
+___
+
+
+## Introduction
+In this project you'll implement Model Predictive Control to drive the car around the track. This time however you're not given the cross track error, you'll have to calculate that yourself! Additionally, there's a 100 millisecond latency between actuations commands on top of the connection latency.
+
+## Simulator
+1. The simulator downloadalble from https://github.com/udacity/self-driving-car-sim/releases.
+
+2. The simulator returns x and y waypoints (`ptsx`and `ptsy`), the vehicle orientation `psi` in radians, the vhicles' global position `x`and `y` in meter, the steering angle `steering_angle` in radians, the throttle position `throttle` and the vehicle's speed `speed`in mph. The `ptsx` and `ptsy` are map coordinates,should be changed to vhicles coordinates, the code in main.cpp:
+    ```cpp
+    unsigned long len = ptsx.size();
+    Eigen::VectorXd target_waypoints_x(len);
+    Eigen::VectorXd target_waypoints_y(len);
+
+    for (unsigned long i = 0; i < len; ++i) {
+      double dx = ptsx[i] - px;
+      double dy = ptsy[i] - py;
+      target_waypoints_x[i] = dx * cos(psi) + dy * sin(psi);
+      target_waypoints_y[i] = dy * cos(psi) - dx * sin(psi);
+    }
+    ``` 
+3. The yellow line represents the waypoints returned by the simulator and the green lane the polynomial fitted reference path of the MPC.
+
+___
+
+## Model Predictive Controller (MPC)
+
+### State Vector
+* The state vector is defined as followed {px, py, psi, v, cte, epsi}.
+
+  | State |Description| Unit |
+  |:-|:-|:-:|
+  |px| Vehicle position x in vhicles coordinates |m|
+  |py| Vehicle position y in vhicles coordinates |m|
+  |psi| Vehicle orientation |radians|
+  |v| Velocity |mph|
+  |cte| The Cross Track Error is the delta between the predicted distance of the vehicle and the trajectory. |m|
+  |epsi| Psi error is the delta between the predicted vehicle orientation and the trajectory orientation.|radians|
+
+* The predict state before latency should be {0, 0, 0, v, cte, epsi}
+* To compensate the latency of 100 ms the state vector [px, py, pis v] and the errors `cte` and `epsi` are predicted by a kinematic model 100 ms ahead (see code below) before the MPC solve function is called. 
+  * Latency Compensation
+    * The predict state after latency was implemented in code:
+      ```cpp
+      double pred_px = 0 + v * dt;
+      double pred_py = 0;
+      double pred_psi = 0 + v * -delta / Lf * dt;
+      double pred_v = v + a * dt;
+      double pred_cte = cte + v * sin(epsi) * dt;
+      double pred_epsi = epsi + v * -delta / Lf * dt;
+
+      Eigen::VectorXd state(6);
+      state << pred_px, pred_py, pred_psi, pred_v, pred_cte, pred_epsi;
+      ```
+
+### Actuator Vector
+* The simulator provides two actuator attributes. The steering angle `psi` and the throttle and break in a single attribute `a`. A negative value decelerates and a positive value accelerates the vehicle.
+
+### The Vehicle Model
+* The vehicle model used in this project is a kinematic bicycle model. It neglects all dynamical effects such as inertia, friction and torque. The model takes changes of heading direction into account and is thus non-linear. The model used consists of the following equations (Notice, In the simulator, a positive value implies a right turn and a negative value implies a left turn, so the psi and the epsi is diffent from in the class.)
+    ```cpp
+    x_[t+1] = x[t] + v[t] * cos(psi[t]) * dt
+    y_[t+1] = y[t] + v[t] * sin(psi[t]) * dt
+    psi_[t+1] = psi[t] - v[t] / Lf * delta[t] * dt
+    v_[t+1] = v[t] + a[t] * dt
+    cte[t+1] = f(x[t]) - y[t] + v[t] * sin(epsi[t]) * dt
+    epsi[t+1] = psi[t] - psides[t] - v[t] * delta[t] / Lf * dt
+    ```
+### Cost Function Parameters
+* In order to weight the individual costs I applied the following weights. 
+  ```cpp
+  // cost weight
+  #define cte_weight 2000
+  #define epsi_weight 2000
+  #define v_weight 1
+  #define delta_weight 5
+  #define a_weight 5
+  #define delta_dot_weight 200
+  #define a_dot_weight 10
+  ```
+### Timestep Length and Elapsed Duration (N & dt)
+* The time T = N * dt defines the prediction horizon.
+* Short prediction horizons lead to more responsive controlers, but are less accurate and can suffer from instabilities when chosen too short.
+* Long prediction horizons generally lead to smoother controls.
+* For a given prediction horizon shorter time steps dt imply more accurate controls but also require a larger NMPC problem to be solved, thus increasing latency.
+* Finally, I decided to use `N = 10` and `dt = 0.1` which leads to a total look ahead time of 1 second. This is a good compromise between processing time and lookahead distance for the chosen target speed of 100 mph.
+
 ---
 
 ## Dependencies
