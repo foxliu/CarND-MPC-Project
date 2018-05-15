@@ -61,7 +61,7 @@ ___
 * The simulator provides two actuator attributes. The steering angle `psi` and the throttle and break in a single attribute `a`. A negative value decelerates and a positive value accelerates the vehicle.
 
 ### The Vehicle Model
-* The vehicle model used in this project is a kinematic bicycle model. It neglects all dynamical effects such as inertia, friction and torque. The model takes changes of heading direction into account and is thus non-linear. The model used consists of the following equations (Notice, In the simulator, a positive value implies a right turn and a negative value implies a left turn, so the psi and the epsi is diffent from in the class.)
+* The vehicle model used in this project is a kinematic bicycle model. It neglects all dynamical effects such as inertia, friction and torque. The model takes changes of heading direction into account and is thus non-linear. The model used consists of the following equations (Notice, In the simulator, a positive value implies a right turn and a negative value implies a left turn, so the psi and the epsi is diffent from the equations in the class.)
     ```cpp
     x_[t+1] = x[t] + v[t] * cos(psi[t]) * dt
     y_[t+1] = y[t] + v[t] * sin(psi[t]) * dt
